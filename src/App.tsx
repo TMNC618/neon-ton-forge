@@ -16,6 +16,16 @@ import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 import WebsiteSettings from "./pages/admin/WebsiteSettings";
 import UserManagement from "./pages/admin/UserManagement";
+import Branding from "./pages/admin/Branding";
+import EmailSettings from "./pages/admin/EmailSettings";
+import DepositManagement from "./pages/admin/DepositManagement";
+import WithdrawManagement from "./pages/admin/WithdrawManagement";
+import DepositRequests from "./pages/admin/DepositRequests";
+import WithdrawRequests from "./pages/admin/WithdrawRequests";
+import ProfitSettings from "./pages/admin/ProfitSettings";
+import ReferralSettings from "./pages/admin/ReferralSettings";
+import SwapManagement from "./pages/admin/SwapManagement";
+import MiningControl from "./pages/admin/MiningControl";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,7 +50,17 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/website-settings" element={<WebsiteSettings />} />
+            <Route path="/admin/branding" element={<Branding />} />
+            <Route path="/admin/email-settings" element={<EmailSettings />} />
+            <Route path="/admin/deposit-management" element={<DepositManagement />} />
+            <Route path="/admin/withdraw-management" element={<WithdrawManagement />} />
+            <Route path="/admin/deposits" element={<DepositRequests />} />
+            <Route path="/admin/withdrawals" element={<WithdrawRequests />} />
             <Route path="/admin/users" element={<UserManagement />} />
+            <Route path="/admin/profit-settings" element={<ProfitSettings />} />
+            <Route path="/admin/referral-settings" element={<ReferralSettings />} />
+            <Route path="/admin/swap-management" element={<SwapManagement />} />
+            <Route path="/admin/mining-control" element={<MiningControl />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
