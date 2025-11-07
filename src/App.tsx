@@ -14,6 +14,8 @@ import Wallet from "./pages/Wallet";
 import Referral from "./pages/Referral";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
+import WebsiteSettings from "./pages/admin/WebsiteSettings";
+import UserManagement from "./pages/admin/UserManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +39,8 @@ const App = () => (
             <Route path="/referral" element={<Referral />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/website-settings" element={<WebsiteSettings />} />
+            <Route path="/admin/users" element={<UserManagement />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
