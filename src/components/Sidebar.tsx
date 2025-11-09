@@ -14,6 +14,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import belincongLogo from '@/assets/belincong-logo.png';
 
 export const Sidebar = () => {
   const { user, logout } = useAuth();
@@ -51,8 +52,17 @@ export const Sidebar = () => {
     <div className="w-64 min-h-screen bg-card border-r border-border/50 flex flex-col">
       {/* Logo */}
       <div className="p-6 border-b border-border/50">
-        <h1 className="text-2xl font-bold neon-text">TON MINING</h1>
-        <p className="text-xs text-muted-foreground mt-1">
+        <div className="flex items-center gap-3">
+          <img 
+            src={belincongLogo} 
+            alt="Belincong Logo" 
+            className="w-10 h-10 object-contain"
+          />
+          <div>
+            <h1 className="text-2xl font-bold neon-text">TON MINING</h1>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
           {isAdmin ? 'Admin Panel' : 'Mining Dashboard'}
         </p>
       </div>
