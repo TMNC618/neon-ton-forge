@@ -56,7 +56,7 @@ export const Sidebar = () => {
           <img 
             src={belincongLogo} 
             alt="Belincong Logo" 
-            className="w-10 h-10 object-contain"
+            className="w-16 h-16 object-contain -rotate-12 transition-transform hover:rotate-0"
           />
           <div>
             <h1 className="text-2xl font-bold neon-text">TON MINING</h1>
