@@ -56,7 +56,7 @@ export const Sidebar = () => {
           <img 
             src={belincongLogo} 
             alt="Belincong Logo" 
-            className="w-16 h-16 object-contain -rotate-12 transition-transform hover:rotate-0 drop-shadow-[0_0_15px_hsl(var(--neon-blue)/0.8)] hover:drop-shadow-[0_0_25px_hsl(var(--neon-blue)/1)]"
+            className="w-16 h-16 object-contain -rotate-12 transition-transform hover:rotate-0 drop-shadow-[0_0_15px_hsl(var(--neon-blue)/0.8)] hover:drop-shadow-[0_0_25px_hsl(var(--neon-blue)/1)] mix-blend-screen"
           />
           <div>
             <h1 className="text-2xl font-bold neon-text">TON MINING</h1>
