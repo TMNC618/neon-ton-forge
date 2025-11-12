@@ -10,7 +10,7 @@ import { Repeat, ArrowRightLeft, Percent } from 'lucide-react';
 const SwapManagement = () => {
   const [settings, setSettings] = useState({
     tonToTeraRate: '10',
-    teraToTonRate: '0.1',
+    teraToTonRate: '0.084',
     swapFee: '0.5',
   });
 
@@ -77,7 +77,7 @@ const SwapManagement = () => {
             <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
               <p className="text-sm text-muted-foreground">
                 <span className="font-semibold text-foreground">Catatan:</span> Pastikan nilai tukar konsisten. 
-                Jika 1 TON = 10 TERA, maka 1 TERA harus = 0.1 TON
+                Jika 1 TON = 10 TERA, maka 1 TERA harus = 0.084 TON
               </p>
             </div>
           </Card>

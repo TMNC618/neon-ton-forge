@@ -13,11 +13,11 @@ const SwapCoin = () => {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Swap rates: 1 TON = 10 TERA, 1 TERA = 0.1 TON
+  // Swap rates: 1 TON = 10 TERA, 1 TERA = 0.084 TON
   const calculateSwapAmount = () => {
     if (!amount) return 0;
     const amountNum = parseFloat(amount);
-    return fromCoin === 'TON' ? amountNum * 10 : amountNum * 0.1;
+    return fromCoin === 'TON' ? amountNum * 10 : amountNum * 0.084;
   };
 
   const swapFee = 0.5; // 0.5% swap fee
@@ -50,7 +50,7 @@ const SwapCoin = () => {
       const fee = amountNum * (swapFee / 100);
       const netSwapAmount = fromCoin === 'TON' 
         ? (amountNum - fee) * 10 
-        : (amountNum - fee) * 0.1;
+        : (amountNum - fee) * 0.084;
 
       if (fromCoin === 'TON' && user) {
         updateUser({
@@ -165,7 +165,7 @@ const SwapCoin = () => {
                         <span className="font-semibold text-primary">
                           {fromCoin === 'TON' 
                             ? ((parseFloat(amount) - (parseFloat(amount) * swapFee / 100)) * 10).toFixed(2)
-                            : ((parseFloat(amount) - (parseFloat(amount) * swapFee / 100)) * 0.1).toFixed(4)
+                            : ((parseFloat(amount) - (parseFloat(amount) * swapFee / 100)) * 0.084).toFixed(4)
                           } {fromCoin === 'TON' ? 'TERA' : 'TON'}
                         </span>
                       </div>
@@ -214,7 +214,7 @@ const SwapCoin = () => {
                   <div>
                     <h3 className="font-semibold text-foreground mb-2">TERA to TON</h3>
                     <p className="text-sm text-muted-foreground">
-                      1 TERA = 0.1 TON
+                      1 TERA = 0.084 TON
                     </p>
                   </div>
                   <div className="pt-4 border-t border-border/50">
