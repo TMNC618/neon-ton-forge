@@ -63,12 +63,7 @@ const Login = () => {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-foreground">Password</Label>
-                <Link to="/forgot-password" className="text-xs text-primary hover:underline font-medium">
-                  Forgot Password?
-                </Link>
-              </div>
+              <Label htmlFor="password" className="text-foreground">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
                 <Input id="password" type="password" placeholder="Enter your password" value={password} onChange={e => setPassword(e.target.value)} required className="pl-10 bg-secondary/30 border-border/50 focus:border-primary" />
@@ -80,6 +75,12 @@ const Login = () => {
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
+
+          <div className="text-right mt-3">
+            <Link to="/forgot-password" className="text-xs text-primary hover:underline font-medium">
+              Forgot Password?
+            </Link>
+          </div>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
