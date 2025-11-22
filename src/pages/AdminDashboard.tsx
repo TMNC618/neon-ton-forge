@@ -1,4 +1,4 @@
-import { Sidebar } from '@/components/Sidebar';
+import { AppLayout } from '@/components/layouts/AppLayout';
 import { StatCard } from '@/components/StatCard';
 import { Users, Activity, DollarSign, TrendingUp } from 'lucide-react';
 
@@ -12,10 +12,8 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      
-      <main className="flex-1 p-8 overflow-auto">
+    <AppLayout>
+      <div className="p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-8">
           {/* Header */}
           <div>
@@ -140,8 +138,8 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 
