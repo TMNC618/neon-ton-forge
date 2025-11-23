@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sidebar } from '@/components/Sidebar';
+import { AppLayout } from '@/components/layouts/AppLayout';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -21,10 +21,8 @@ const Branding = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      
-      <main className="flex-1 p-8">
+    <AppLayout>
+      <div className="p-4 md:p-8">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center gap-3 mb-8">
@@ -155,8 +153,8 @@ const Branding = () => {
             </Button>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

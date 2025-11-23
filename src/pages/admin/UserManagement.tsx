@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sidebar } from '@/components/Sidebar';
+import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -147,10 +147,8 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-
-      <main className="flex-1 p-8">
+    <AppLayout>
+      <div className="p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center gap-3 mb-8">
@@ -254,7 +252,7 @@ const UserManagement = () => {
             </Table>
           </Card>
         </div>
-      </main>
+      </div>
 
       {/* Detail Dialog */}
       <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
@@ -370,7 +368,7 @@ const UserManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AppLayout>
   );
 };
 
