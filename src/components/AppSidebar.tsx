@@ -16,6 +16,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { NavLink } from '@/components/NavLink';
 import belincongLogo from '@/assets/belincong-logo.png';
+import { cn } from '@/lib/utils';
 import {
   Sidebar,
   SidebarContent,
@@ -74,16 +75,17 @@ export function AppSidebar() {
           <img 
             src={belincongLogo} 
             alt="TON Mining" 
-            className="w-10 h-10 object-contain drop-shadow-[0_0_15px_hsl(var(--primary)/0.6)]"
+            className="w-10 h-10 object-contain drop-shadow-[0_0_15px_hsl(var(--primary)/0.6)] transition-all duration-300"
           />
-          {!collapsed && (
-            <div>
-              <h1 className="text-lg font-bold neon-text">TON MINING</h1>
-              <p className="text-xs text-muted-foreground">
-                {isAdmin ? 'Admin Panel' : 'Dashboard'}
-              </p>
-            </div>
-          )}
+          <div className={cn(
+            "overflow-hidden transition-all duration-300 ease-in-out",
+            collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+          )}>
+            <h1 className="text-lg font-bold neon-text whitespace-nowrap">TON MINING</h1>
+            <p className="text-xs text-muted-foreground whitespace-nowrap">
+              {isAdmin ? 'Admin Panel' : 'Dashboard'}
+            </p>
+          </div>
         </div>
       </SidebarHeader>
 
@@ -100,11 +102,14 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild isActive={isActive}>
                       <NavLink 
                         to={item.path}
-                        className="hover:bg-muted/50"
+                        className="hover:bg-muted/50 transition-all duration-200"
                         activeClassName="bg-primary/10 text-primary border-l-2 border-primary"
                       >
-                        <item.icon className="w-4 h-4" />
-                        <span>{item.label}</span>
+                        <item.icon className="w-4 h-4 transition-transform duration-200" />
+                        <span className={cn(
+                          "transition-all duration-300 ease-in-out",
+                          collapsed ? "w-0 opacity-0" : "opacity-100"
+                        )}>{item.label}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -117,17 +122,21 @@ export function AppSidebar() {
 
       {/* Footer with User Info */}
       <SidebarFooter className="border-t border-border/50 p-4">
-        {!collapsed && (
-          <div className="mb-3 px-3 py-2 bg-secondary/30 rounded-lg">
-            <div className="text-xs text-muted-foreground">Logged in as</div>
-            <div className="text-sm font-semibold text-foreground truncate">
-              {user?.username}
-            </div>
+        <div className={cn(
+          "mb-3 px-3 py-2 bg-secondary/30 rounded-lg overflow-hidden transition-all duration-300 ease-in-out",
+          collapsed ? "max-h-0 opacity-0 mb-0 py-0" : "max-h-20 opacity-100"
+        )}>
+          <div className="text-xs text-muted-foreground whitespace-nowrap">Logged in as</div>
+          <div className="text-sm font-semibold text-foreground truncate">
+            {user?.username}
           </div>
-        )}
-        <SidebarMenuButton onClick={logout} className="text-destructive hover:bg-destructive/10">
-          <LogOut className="w-4 h-4" />
-          {!collapsed && <span>Logout</span>}
+        </div>
+        <SidebarMenuButton onClick={logout} className="text-destructive hover:bg-destructive/10 transition-all duration-200">
+          <LogOut className="w-4 h-4 transition-transform duration-200" />
+          <span className={cn(
+            "transition-all duration-300 ease-in-out",
+            collapsed ? "w-0 opacity-0" : "opacity-100"
+          )}>Logout</span>
         </SidebarMenuButton>
       </SidebarFooter>
     </Sidebar>
