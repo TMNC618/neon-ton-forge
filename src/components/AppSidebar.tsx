@@ -102,10 +102,10 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild isActive={isActive}>
                       <NavLink 
                         to={item.path}
-                        className="hover:bg-muted/50 transition-all duration-200"
+                        className="hover:bg-muted/50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 origin-left"
                         activeClassName="bg-primary/10 text-primary border-l-2 border-primary"
                       >
-                        <item.icon className="w-4 h-4 transition-transform duration-200" />
+                        <item.icon className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
                         <span className={cn(
                           "transition-all duration-300 ease-in-out",
                           collapsed ? "w-0 opacity-0" : "opacity-100"
@@ -131,8 +131,8 @@ export function AppSidebar() {
             {user?.username}
           </div>
         </div>
-        <SidebarMenuButton onClick={logout} className="text-destructive hover:bg-destructive/10 transition-all duration-200">
-          <LogOut className="w-4 h-4 transition-transform duration-200" />
+        <SidebarMenuButton onClick={logout} className="text-destructive hover:bg-destructive/10 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 origin-left">
+          <LogOut className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
           <span className={cn(
             "transition-all duration-300 ease-in-out",
             collapsed ? "w-0 opacity-0" : "opacity-100"
