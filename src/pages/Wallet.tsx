@@ -1,16 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Wallet as WalletIcon, Copy, Save, CheckCircle } from 'lucide-react';
+import { Wallet as WalletIcon, Copy, Save, CheckCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const Wallet = () => {
-  const { user, updateUser } = useAuth();
-  const [walletAddress, setWalletAddress] = useState(user?.walletAddress || '');
-  const [loading, setLoading] = useState(false);
+  const { user, profile, loading, refreshProfile } = useAuth();
+  const navigate = useNavigate();
+  const [walletAddress, setWalletAddress] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login');
+    }
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (profile) {
+      setWalletAddress(profile.wallet_address || '');
+    }
+  }, [profile]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user || !profile) return null;
 
   const handleCopyAddress = () => {
     if (walletAddress) {
@@ -19,7 +44,7 @@ const Wallet = () => {
     }
   };
 
-  const handleSaveWallet = (e: React.FormEvent) => {
+  const handleSaveWallet = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!walletAddress || walletAddress.length < 10) {
@@ -27,12 +52,22 @@ const Wallet = () => {
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => {
-      updateUser({ walletAddress });
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ wallet_address: walletAddress })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      await refreshProfile();
       toast.success('Wallet address saved successfully!');
-      setLoading(false);
-    }, 1000);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save wallet address');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -84,7 +119,7 @@ const Wallet = () => {
                   </p>
                 </div>
 
-                {user?.walletAddress && (
+                {profile.wallet_address && (
                   <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
                     <div>
@@ -98,11 +133,11 @@ const Wallet = () => {
 
                 <Button
                   type="submit"
-                  disabled={loading}
+                  disabled={saving}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 shadow-[0_0_20px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
                 >
-                  <Save className="w-5 h-5 mr-2" />
-                  {loading ? 'Saving...' : 'Save Wallet Address'}
+                  {saving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
+                  {saving ? 'Saving...' : 'Save Wallet Address'}
                 </Button>
               </form>
 
@@ -121,7 +156,7 @@ const Wallet = () => {
               <div className="bg-card border border-border/50 rounded-2xl p-8">
                 <h2 className="text-xl font-semibold text-foreground mb-6">Current Wallet</h2>
                 
-                {user?.walletAddress ? (
+                {profile.wallet_address ? (
                   <div className="space-y-4">
                     <div className="p-6 bg-primary/10 rounded-xl border border-primary/30">
                       <div className="flex items-center gap-3 mb-4">
@@ -134,18 +169,18 @@ const Wallet = () => {
                         </div>
                       </div>
                       <div className="break-all font-mono text-sm text-foreground">
-                        {user.walletAddress}
+                        {profile.wallet_address}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="p-4 bg-secondary/30 rounded-lg">
                         <p className="text-xs text-muted-foreground mb-1">TON Balance</p>
-                        <p className="text-lg font-bold text-primary">{user.balance.toFixed(2)}</p>
+                        <p className="text-lg font-bold text-primary">{profile.balance.toFixed(2)}</p>
                       </div>
                       <div className="p-4 bg-secondary/30 rounded-lg">
                         <p className="text-xs text-muted-foreground mb-1">TERA Balance</p>
-                        <p className="text-lg font-bold text-foreground">{user.teraBalance.toFixed(2)}</p>
+                        <p className="text-lg font-bold text-foreground">{profile.tera_balance.toFixed(2)}</p>
                       </div>
                     </div>
                   </div>

@@ -32,10 +32,9 @@ import {
 } from '@/components/ui/sidebar';
 
 export function AppSidebar() {
-  const { user, logout } = useAuth();
+  const { profile, isAdmin, logout } = useAuth();
   const { state } = useSidebar();
   const location = useLocation();
-  const isAdmin = user?.role === 'admin';
   const collapsed = state === 'collapsed';
 
   const userMenuItems = [
@@ -128,7 +127,7 @@ export function AppSidebar() {
         )}>
           <div className="text-xs text-muted-foreground whitespace-nowrap">Logged in as</div>
           <div className="text-sm font-semibold text-foreground truncate">
-            {user?.username}
+            {profile?.username}
           </div>
         </div>
         <SidebarMenuButton onClick={logout} className="text-destructive hover:bg-destructive/10 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 origin-left">

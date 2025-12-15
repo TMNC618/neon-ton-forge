@@ -1,130 +1,200 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
-interface User {
+interface Profile {
   id: string;
   email: string;
   username: string;
-  role: 'user' | 'admin';
   balance: number;
-  teraBalance: number;
-  miningBalance: number;
-  earningProfit: number;
-  earningReferral: number;
-  walletAddress: string;
-  phoneNumber: string;
-  isActive: boolean;
-  miningActive: boolean;
-  lastMiningStart?: number;
+  tera_balance: number;
+  mining_balance: number;
+  earning_profit: number;
+  earning_referral: number;
+  wallet_address: string;
+  phone_number: string;
+  is_active: boolean;
+  mining_active: boolean;
+  last_mining_start: string | null;
+  referral_code: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (email: string, password: string, username: string) => Promise<boolean>;
-  logout: () => void;
-  updateUser: (updates: Partial<User>) => void;
+  session: Session | null;
+  profile: Profile | null;
+  isAdmin: boolean;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (email: string, password: string, username: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users database
-const mockUsers: User[] = [
-  {
-    id: '1',
-    email: 'admin@tonmining.com',
-    username: 'Admin',
-    role: 'admin',
-    balance: 0,
-    teraBalance: 0,
-    miningBalance: 0,
-    earningProfit: 0,
-    earningReferral: 0,
-    walletAddress: '',
-    phoneNumber: '',
-    isActive: true,
-    miningActive: false,
-  },
-  {
-    id: '2',
-    email: 'user@example.com',
-    username: 'DemoUser',
-    role: 'user',
-    balance: 100,
-    teraBalance: 50,
-    miningBalance: 100,
-    earningProfit: 45.5,
-    earningReferral: 12.3,
-    walletAddress: 'EQD...abc123',
-    phoneNumber: '+1234567890',
-    isActive: true,
-    miningActive: true,
-    lastMiningStart: Date.now(),
-  },
-];
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        return;
+      }
+
+      if (profileData) {
+        setProfile({
+          id: profileData.id,
+          email: profileData.email,
+          username: profileData.username,
+          balance: Number(profileData.balance) || 0,
+          tera_balance: Number(profileData.tera_balance) || 0,
+          mining_balance: Number(profileData.mining_balance) || 0,
+          earning_profit: Number(profileData.earning_profit) || 0,
+          earning_referral: Number(profileData.earning_referral) || 0,
+          wallet_address: profileData.wallet_address || '',
+          phone_number: profileData.phone_number || '',
+          is_active: profileData.is_active ?? true,
+          mining_active: profileData.mining_active ?? false,
+          last_mining_start: profileData.last_mining_start,
+          referral_code: profileData.referral_code || '',
+        });
+      }
+
+      // Check admin role
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      setIsAdmin(roleData?.role === 'admin');
+    } catch (error) {
+      console.error('Error in fetchProfile:', error);
+    }
+  };
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('ton_mining_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          // Defer profile fetch to avoid deadlock
+          setTimeout(() => {
+            fetchProfile(session.user.id);
+          }, 0);
+        } else {
+          setProfile(null);
+          setIsAdmin(false);
+        }
+        setLoading(false);
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock login - in real app, this would call an API
-    const foundUser = mockUsers.find(u => u.email === email);
-    
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('ton_mining_user', JSON.stringify(foundUser));
-      return true;
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data.user) {
+        await fetchProfile(data.user.id);
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'An error occurred during login' };
     }
-    
-    return false;
   };
 
-  const register = async (email: string, password: string, username: string): Promise<boolean> => {
-    // Mock registration
-    const newUser: User = {
-      id: Date.now().toString(),
-      email,
-      username,
-      role: 'user',
-      balance: 0,
-      teraBalance: 0,
-      miningBalance: 0,
-      earningProfit: 0,
-      earningReferral: 0,
-      walletAddress: '',
-      phoneNumber: '',
-      isActive: true,
-      miningActive: false,
-    };
-    
-    mockUsers.push(newUser);
-    setUser(newUser);
-    localStorage.setItem('ton_mining_user', JSON.stringify(newUser));
-    return true;
+  const register = async (email: string, password: string, username: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            username,
+          },
+        },
+      });
+
+      if (error) {
+        if (error.message.includes('already registered')) {
+          return { success: false, error: 'Email sudah terdaftar. Silakan login.' };
+        }
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'An error occurred during registration' };
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('ton_mining_user');
+    setSession(null);
+    setProfile(null);
+    setIsAdmin(false);
     window.location.href = '/login';
   };
 
-  const updateUser = (updates: Partial<User>) => {
+  const refreshProfile = async () => {
     if (user) {
-      const updatedUser = { ...user, ...updates };
-      setUser(updatedUser);
-      localStorage.setItem('ton_mining_user', JSON.stringify(updatedUser));
+      await fetchProfile(user.id);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      profile, 
+      isAdmin, 
+      loading, 
+      login, 
+      register, 
+      logout,
+      refreshProfile 
+    }}>
       {children}
     </AuthContext.Provider>
   );

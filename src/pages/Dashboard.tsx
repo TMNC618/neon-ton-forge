@@ -1,29 +1,53 @@
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { StatCard } from '@/components/StatCard';
 import { MiningCircle } from '@/components/MiningCircle';
 import { useAuth } from '@/contexts/AuthContext';
-import { Wallet, TrendingUp, Users, Coins } from 'lucide-react';
+import { Wallet, TrendingUp, Users, Coins, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const Dashboard = () => {
-  const { user, updateUser } = useAuth();
+  const { user, profile, loading, refreshProfile } = useAuth();
+  const navigate = useNavigate();
 
-  if (!user) return null;
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login');
+    }
+  }, [user, loading, navigate]);
 
-  const handleStartMining = () => {
-    if (!user.miningActive) {
-      updateUser({
-        miningActive: true,
-        lastMiningStart: Date.now(),
-      });
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user || !profile) return null;
+
+  const handleStartMining = async () => {
+    try {
+      const { error } = await supabase.rpc('start_mining');
+      if (error) throw error;
+      toast.success('Mining started!');
+      await refreshProfile();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to start mining');
     }
   };
 
-  const handleStopMining = () => {
-    if (user.miningActive) {
-      updateUser({
-        miningActive: false,
-      });
+  const handleStopMining = async () => {
+    try {
+      const { data, error } = await supabase.rpc('stop_mining');
+      if (error) throw error;
+      toast.success(`Mining stopped! Earned: ${Number(data).toFixed(6)} TON`);
+      await refreshProfile();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to stop mining');
     }
   };
 
@@ -34,7 +58,7 @@ const Dashboard = () => {
           {/* Header */}
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">
-              Welcome back, <span className="neon-text">{user.username}</span>
+              Welcome back, <span className="neon-text">{profile.username}</span>
             </h1>
             <p className="text-muted-foreground">Monitor your mining operations and earnings</p>
           </div>
@@ -44,27 +68,27 @@ const Dashboard = () => {
             <StatCard
               icon={Wallet}
               label="TON Balance"
-              value={user.balance.toFixed(2)}
+              value={profile.balance.toFixed(2)}
               subValue="TON"
               glowing
             />
             <StatCard
               icon={Coins}
               label="TERA Balance"
-              value={user.teraBalance.toFixed(2)}
+              value={profile.tera_balance.toFixed(2)}
               subValue="TERA"
             />
             <StatCard
               icon={TrendingUp}
               label="Earning Profit"
-              value={user.earningProfit.toFixed(2)}
+              value={profile.earning_profit.toFixed(2)}
               subValue="TON"
               trend="up"
             />
             <StatCard
               icon={Users}
               label="Earning Referral"
-              value={user.earningReferral.toFixed(2)}
+              value={profile.earning_referral.toFixed(2)}
               subValue="TON"
               trend="up"
             />
@@ -77,15 +101,15 @@ const Dashboard = () => {
               <h2 className="text-xl font-semibold text-foreground mb-6">Mining Status</h2>
               
               <MiningCircle
-                miningBalance={user.miningBalance}
-                isActive={user.miningActive}
-                lastMiningStart={user.lastMiningStart}
+                miningBalance={profile.mining_balance}
+                isActive={profile.mining_active}
+                lastMiningStart={profile.last_mining_start ? new Date(profile.last_mining_start).getTime() : undefined}
               />
 
               <div className="mt-8 space-y-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Mining Balance:</span>
-                  <span className="font-semibold text-foreground">{user.miningBalance} TON</span>
+                  <span className="font-semibold text-foreground">{profile.mining_balance} TON</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Daily Profit Rate:</span>
@@ -94,15 +118,16 @@ const Dashboard = () => {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Expected Daily Profit:</span>
                   <span className="font-semibold text-foreground">
-                    {(user.miningBalance * 0.01).toFixed(4)} TON
+                    {(profile.mining_balance * 0.01).toFixed(4)} TON
                   </span>
                 </div>
               </div>
 
               <div className="mt-6 flex gap-3">
-                {!user.miningActive ? (
+                {!profile.mining_active ? (
                   <Button
                     onClick={handleStartMining}
+                    disabled={profile.mining_balance <= 0}
                     className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                   >
                     Start Mining
@@ -113,7 +138,7 @@ const Dashboard = () => {
                     variant="destructive"
                     className="flex-1"
                   >
-                    Stop Mining
+                    Stop Mining & Claim
                   </Button>
                 )}
               </div>
@@ -157,6 +182,7 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Button
                 variant="outline"
+                onClick={() => navigate('/deposit')}
                 className="h-24 flex flex-col items-center justify-center gap-2 border-primary/30 hover:bg-primary/10"
               >
                 <Wallet className="w-6 h-6 text-primary" />
@@ -164,6 +190,7 @@ const Dashboard = () => {
               </Button>
               <Button
                 variant="outline"
+                onClick={() => navigate('/withdraw')}
                 className="h-24 flex flex-col items-center justify-center gap-2 border-primary/30 hover:bg-primary/10"
               >
                 <TrendingUp className="w-6 h-6 text-primary" />
@@ -171,6 +198,7 @@ const Dashboard = () => {
               </Button>
               <Button
                 variant="outline"
+                onClick={() => navigate('/referral')}
                 className="h-24 flex flex-col items-center justify-center gap-2 border-primary/30 hover:bg-primary/10"
               >
                 <Users className="w-6 h-6 text-primary" />
