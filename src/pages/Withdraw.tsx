@@ -1,22 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { ArrowUpFromLine, Wallet, TrendingUp, Users } from 'lucide-react';
+import { ArrowUpFromLine, TrendingUp, Users, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const Withdraw = () => {
-  const { user } = useAuth();
+  const { user, profile, loading, refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const [profitAmount, setProfitAmount] = useState('');
   const [profitWallet, setProfitWallet] = useState('');
   const [referralAmount, setReferralAmount] = useState('');
   const [referralWallet, setReferralWallet] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleProfitWithdraw = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login');
+    }
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (profile?.wallet_address) {
+      setProfitWallet(profile.wallet_address);
+      setReferralWallet(profile.wallet_address);
+    }
+  }, [profile]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user || !profile) return null;
+
+  const handleProfitWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!profitAmount || parseFloat(profitAmount) < 5) {
@@ -24,7 +50,7 @@ const Withdraw = () => {
       return;
     }
 
-    if (parseFloat(profitAmount) > (user?.earningProfit || 0)) {
+    if (parseFloat(profitAmount) > profile.earning_profit) {
       toast.error('Insufficient profit balance');
       return;
     }
@@ -34,16 +60,28 @@ const Withdraw = () => {
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => {
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.rpc('create_withdrawal', {
+        _amount: parseFloat(profitAmount),
+        _wallet_address: profitWallet,
+        _currency: 'TON',
+        _withdraw_type: 'profit'
+      });
+
+      if (error) throw error;
+
       toast.success('Withdrawal request submitted successfully!');
       setProfitAmount('');
-      setProfitWallet('');
-      setLoading(false);
-    }, 1500);
+      await refreshProfile();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to submit withdrawal');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleReferralWithdraw = (e: React.FormEvent) => {
+  const handleReferralWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!referralAmount || parseFloat(referralAmount) < 5) {
@@ -51,7 +89,7 @@ const Withdraw = () => {
       return;
     }
 
-    if (parseFloat(referralAmount) > (user?.earningReferral || 0)) {
+    if (parseFloat(referralAmount) > profile.earning_referral) {
       toast.error('Insufficient referral balance');
       return;
     }
@@ -61,13 +99,25 @@ const Withdraw = () => {
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => {
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.rpc('create_withdrawal', {
+        _amount: parseFloat(referralAmount),
+        _wallet_address: referralWallet,
+        _currency: 'TON',
+        _withdraw_type: 'referral'
+      });
+
+      if (error) throw error;
+
       toast.success('Withdrawal request submitted successfully!');
       setReferralAmount('');
-      setReferralWallet('');
-      setLoading(false);
-    }, 1500);
+      await refreshProfile();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to submit withdrawal');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -92,7 +142,7 @@ const Withdraw = () => {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Available Profit</p>
-                    <p className="text-2xl font-bold neon-text">{user?.earningProfit.toFixed(2)} TON</p>
+                    <p className="text-2xl font-bold neon-text">{profile.earning_profit.toFixed(2)} TON</p>
                   </div>
                 </div>
               </div>
@@ -106,7 +156,7 @@ const Withdraw = () => {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Referral Earnings</p>
-                    <p className="text-2xl font-bold text-foreground">{user?.earningReferral.toFixed(2)} TON</p>
+                    <p className="text-2xl font-bold text-foreground">{profile.earning_referral.toFixed(2)} TON</p>
                   </div>
                 </div>
               </div>
@@ -136,7 +186,7 @@ const Withdraw = () => {
                       type="number"
                       step="0.01"
                       min="5"
-                      max={user?.earningProfit}
+                      max={profile.earning_profit}
                       placeholder="Enter amount (min: 5 TON)"
                       value={profitAmount}
                       onChange={(e) => setProfitAmount(e.target.value)}
@@ -145,7 +195,7 @@ const Withdraw = () => {
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>Minimum: 5 TON</span>
-                      <span>Available: {user?.earningProfit.toFixed(2)} TON</span>
+                      <span>Available: {profile.earning_profit.toFixed(2)} TON</span>
                     </div>
                   </div>
 
@@ -188,11 +238,11 @@ const Withdraw = () => {
 
                   <Button
                     type="submit"
-                    disabled={loading}
+                    disabled={submitting}
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 shadow-[0_0_20px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
                   >
-                    <ArrowUpFromLine className="w-5 h-5 mr-2" />
-                    {loading ? 'Processing...' : 'Confirm Withdrawal'}
+                    {submitting ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <ArrowUpFromLine className="w-5 h-5 mr-2" />}
+                    {submitting ? 'Processing...' : 'Confirm Withdrawal'}
                   </Button>
                 </form>
               </div>
@@ -210,7 +260,7 @@ const Withdraw = () => {
                       type="number"
                       step="0.01"
                       min="5"
-                      max={user?.earningReferral}
+                      max={profile.earning_referral}
                       placeholder="Enter amount (min: 5 TON)"
                       value={referralAmount}
                       onChange={(e) => setReferralAmount(e.target.value)}
@@ -219,7 +269,7 @@ const Withdraw = () => {
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>Minimum: 5 TON</span>
-                      <span>Available: {user?.earningReferral.toFixed(2)} TON</span>
+                      <span>Available: {profile.earning_referral.toFixed(2)} TON</span>
                     </div>
                   </div>
 
@@ -262,50 +312,16 @@ const Withdraw = () => {
 
                   <Button
                     type="submit"
-                    disabled={loading}
+                    disabled={submitting}
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 shadow-[0_0_20px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
                   >
-                    <ArrowUpFromLine className="w-5 h-5 mr-2" />
-                    {loading ? 'Processing...' : 'Confirm Withdrawal'}
+                    {submitting ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <ArrowUpFromLine className="w-5 h-5 mr-2" />}
+                    {submitting ? 'Processing...' : 'Confirm Withdrawal'}
                   </Button>
                 </form>
               </div>
             </TabsContent>
           </Tabs>
-
-          {/* Recent Withdrawals */}
-          <div className="bg-card border border-border/50 rounded-2xl p-8">
-            <h2 className="text-xl font-semibold text-foreground mb-6">Recent Withdrawals</h2>
-            
-            <div className="space-y-4">
-              {[
-                { date: '2024-01-19', amount: 25.5, type: 'Profit', status: 'approved' },
-                { date: '2024-01-17', amount: 10.2, type: 'Referral', status: 'pending' },
-                { date: '2024-01-15', amount: 15.8, type: 'Profit', status: 'approved' },
-              ].map((withdrawal, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                      <ArrowUpFromLine className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{withdrawal.date}</p>
-                      <p className="text-xs text-muted-foreground">{withdrawal.type} Withdrawal</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-primary">-{withdrawal.amount} TON</p>
-                    <p className={`text-xs ${withdrawal.status === 'approved' ? 'text-green-500' : 'text-yellow-500'}`}>
-                      {withdrawal.status === 'approved' ? 'Approved' : 'Pending'}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </AppLayout>

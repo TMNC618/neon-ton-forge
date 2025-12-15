@@ -1,17 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { ArrowDownUp, RefreshCw } from 'lucide-react';
+import { ArrowDownUp, RefreshCw, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const SwapCoin = () => {
-  const { user, updateUser } = useAuth();
+  const { user, profile, loading, refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const [fromCoin, setFromCoin] = useState<'TON' | 'TERA'>('TON');
   const [amount, setAmount] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [swapping, setSwapping] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login');
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user || !profile) return null;
 
   // Swap rates: 1 TON = 10 TERA, 1 TERA = 0.084 TON
   const calculateSwapAmount = () => {
@@ -27,7 +46,7 @@ const SwapCoin = () => {
     setAmount('');
   };
 
-  const handleSwap = (e: React.FormEvent) => {
+  const handleSwap = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!amount || parseFloat(amount) <= 0) {
@@ -36,39 +55,31 @@ const SwapCoin = () => {
     }
 
     const amountNum = parseFloat(amount);
-    const maxBalance = fromCoin === 'TON' ? (user?.balance || 0) : (user?.teraBalance || 0);
+    const maxBalance = fromCoin === 'TON' ? profile.balance : profile.tera_balance;
 
     if (amountNum > maxBalance) {
       toast.error(`Insufficient ${fromCoin} balance`);
       return;
     }
 
-    setLoading(true);
+    setSwapping(true);
 
-    setTimeout(() => {
-      const swapAmount = calculateSwapAmount();
-      const fee = amountNum * (swapFee / 100);
-      const netSwapAmount = fromCoin === 'TON' 
-        ? (amountNum - fee) * 10 
-        : (amountNum - fee) * 0.084;
+    try {
+      const functionName = fromCoin === 'TON' ? 'swap_ton_to_tera' : 'swap_tera_to_ton';
+      const { data, error } = await supabase.rpc(functionName, { _amount: amountNum });
+      
+      if (error) throw error;
 
-      if (fromCoin === 'TON' && user) {
-        updateUser({
-          balance: user.balance - amountNum,
-          teraBalance: user.teraBalance + netSwapAmount,
-        });
-        toast.success(`Swapped ${amountNum} TON to ${netSwapAmount.toFixed(2)} TERA`);
-      } else if (fromCoin === 'TERA' && user) {
-        updateUser({
-          balance: user.balance + netSwapAmount,
-          teraBalance: user.teraBalance - amountNum,
-        });
-        toast.success(`Swapped ${amountNum} TERA to ${netSwapAmount.toFixed(4)} TON`);
-      }
-
+      const resultAmount = Number(data);
+      toast.success(`Swapped ${amountNum} ${fromCoin} to ${resultAmount.toFixed(fromCoin === 'TON' ? 2 : 4)} ${fromCoin === 'TON' ? 'TERA' : 'TON'}`);
+      
       setAmount('');
-      setLoading(false);
-    }, 1500);
+      await refreshProfile();
+    } catch (error: any) {
+      toast.error(error.message || 'Swap failed');
+    } finally {
+      setSwapping(false);
+    }
   };
 
   return (
@@ -96,7 +107,7 @@ const SwapCoin = () => {
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-2xl font-bold text-primary">{fromCoin}</span>
                       <span className="text-sm text-muted-foreground">
-                        Balance: {fromCoin === 'TON' ? user?.balance.toFixed(2) : user?.teraBalance.toFixed(2)}
+                        Balance: {fromCoin === 'TON' ? profile.balance.toFixed(2) : profile.tera_balance.toFixed(2)}
                       </span>
                     </div>
                     <Input
@@ -134,7 +145,7 @@ const SwapCoin = () => {
                         {fromCoin === 'TON' ? 'TERA' : 'TON'}
                       </span>
                       <span className="text-sm text-muted-foreground">
-                        Balance: {fromCoin === 'TON' ? user?.teraBalance.toFixed(2) : user?.balance.toFixed(2)}
+                        Balance: {fromCoin === 'TON' ? profile.tera_balance.toFixed(2) : profile.balance.toFixed(2)}
                       </span>
                     </div>
                     <div className="text-2xl font-semibold text-primary">
@@ -173,11 +184,11 @@ const SwapCoin = () => {
 
                 <Button
                   type="submit"
-                  disabled={loading}
+                  disabled={swapping}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 shadow-[0_0_20px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
                 >
-                  <RefreshCw className={`w-5 h-5 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                  {loading ? 'Swapping...' : 'Swap Now'}
+                  <RefreshCw className={`w-5 h-5 mr-2 ${swapping ? 'animate-spin' : ''}`} />
+                  {swapping ? 'Swapping...' : 'Swap Now'}
                 </Button>
               </form>
             </div>
@@ -190,11 +201,11 @@ const SwapCoin = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 bg-primary/10 rounded-lg">
                     <span className="font-medium text-foreground">TON Balance</span>
-                    <span className="text-xl font-bold text-primary">{user?.balance.toFixed(2)}</span>
+                    <span className="text-xl font-bold text-primary">{profile.balance.toFixed(2)}</span>
                   </div>
                   <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg">
                     <span className="font-medium text-foreground">TERA Balance</span>
-                    <span className="text-xl font-bold text-foreground">{user?.teraBalance.toFixed(2)}</span>
+                    <span className="text-xl font-bold text-foreground">{profile.tera_balance.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -222,34 +233,6 @@ const SwapCoin = () => {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Recent Swaps */}
-          <div className="bg-card border border-border/50 rounded-2xl p-8">
-            <h2 className="text-xl font-semibold text-foreground mb-6">Recent Swaps</h2>
-            
-            <div className="space-y-4">
-              {[
-                { date: '2024-01-20', from: '50 TON', to: '500 TERA' },
-                { date: '2024-01-18', from: '200 TERA', to: '20 TON' },
-                { date: '2024-01-15', from: '100 TON', to: '1000 TERA' },
-              ].map((swap, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-colors"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{swap.date}</p>
-                    <p className="text-xs text-muted-foreground">Completed</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-foreground">
-                      {swap.from} → {swap.to}
-                    </p>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>

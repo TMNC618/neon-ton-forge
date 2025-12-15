@@ -357,7 +357,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_user_balance: {
+        Args: { _amount: number; _balance_type?: string; _user_id: string }
+        Returns: boolean
+      }
+      apply_referral_code: {
+        Args: { _referral_code: string }
+        Returns: boolean
+      }
+      approve_deposit: {
+        Args: { _deposit_id: string; _note?: string }
+        Returns: boolean
+      }
+      approve_withdrawal: {
+        Args: { _note?: string; _withdrawal_id: string }
+        Returns: boolean
+      }
+      create_withdrawal: {
+        Args: {
+          _amount: number
+          _currency?: string
+          _wallet_address: string
+          _withdraw_type?: string
+        }
+        Returns: string
+      }
       generate_referral_code: { Args: never; Returns: string }
+      get_admin_stats: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -366,6 +392,28 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      process_referral_bonus: {
+        Args: { _deposit_amount: number }
+        Returns: boolean
+      }
+      reduce_user_balance: {
+        Args: { _amount: number; _balance_type?: string; _user_id: string }
+        Returns: boolean
+      }
+      reject_deposit: {
+        Args: { _deposit_id: string; _note?: string }
+        Returns: boolean
+      }
+      reject_withdrawal: {
+        Args: { _note?: string; _withdrawal_id: string }
+        Returns: boolean
+      }
+      start_mining: { Args: never; Returns: boolean }
+      stop_mining: { Args: never; Returns: number }
+      swap_tera_to_ton: { Args: { _amount: number }; Returns: number }
+      swap_ton_to_tera: { Args: { _amount: number }; Returns: number }
+      toggle_user_status: { Args: { _user_id: string }; Returns: boolean }
+      update_setting: { Args: { _key: string; _value: Json }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user"
