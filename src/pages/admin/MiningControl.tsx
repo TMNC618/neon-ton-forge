@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -15,68 +14,131 @@ import {
 } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { Settings, Play, Pause, AlertCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MiningUser {
   id: string;
   username: string;
-  miningBalance: number;
-  dailyProfit: number;
-  isMining: boolean;
+  mining_balance: number;
+  earning_profit: number;
+  mining_active: boolean;
 }
 
 const MiningControl = () => {
   const [globalMining, setGlobalMining] = useState(true);
-  const [users, setUsers] = useState<MiningUser[]>([
-    {
-      id: '1',
-      username: 'DemoUser',
-      miningBalance: 100,
-      dailyProfit: 1,
-      isMining: true,
-    },
-    {
-      id: '2',
-      username: 'JohnDoe',
-      miningBalance: 250,
-      dailyProfit: 2.5,
-      isMining: true,
-    },
-    {
-      id: '3',
-      username: 'JaneSmith',
-      miningBalance: 50,
-      dailyProfit: 0.5,
-      isMining: false,
-    },
-  ]);
+  const [users, setUsers] = useState<MiningUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const handleGlobalToggle = (enabled: boolean) => {
-    setGlobalMining(enabled);
-    if (enabled) {
-      toast.success('Mining global diaktifkan!');
-    } else {
-      toast.error('Mining global dihentikan!');
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      // Fetch global mining setting
+      const { data: settingData } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'global_mining_enabled')
+        .maybeSingle();
+
+      if (settingData) {
+        setGlobalMining(settingData.value as boolean);
+      }
+
+      // Fetch users with mining data
+      const { data: usersData, error } = await supabase
+        .from('profiles')
+        .select('id, username, mining_balance, earning_profit, mining_active')
+        .gt('mining_balance', 0)
+        .order('mining_balance', { ascending: false });
+
+      if (error) throw error;
+      setUsers(usersData || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const toggleUserMining = (userId: string) => {
-    setUsers(prev =>
-      prev.map(user =>
-        user.id === userId ? { ...user, isMining: !user.isMining } : user
-      )
-    );
-    const user = users.find(u => u.id === userId);
-    toast.success(`Mining ${user?.username} ${user?.isMining ? 'dihentikan' : 'diaktifkan'}!`);
+  const handleGlobalToggle = async (enabled: boolean) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc('update_setting', {
+        _key: 'global_mining_enabled',
+        _value: enabled
+      });
+
+      if (error) throw error;
+
+      setGlobalMining(enabled);
+      if (enabled) {
+        toast.success('Mining global diaktifkan!');
+      } else {
+        toast.error('Mining global dihentikan!');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Gagal mengubah status mining');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const startAllMining = () => {
-    setUsers(prev => prev.map(user => ({ ...user, isMining: true })));
-    toast.success('Mining semua user diaktifkan!');
+  const toggleUserMining = async (userId: string) => {
+    try {
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ mining_active: !user.mining_active })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUsers(prev =>
+        prev.map(u =>
+          u.id === userId ? { ...u, mining_active: !u.mining_active } : u
+        )
+      );
+      toast.success(`Mining ${user.username} ${user.mining_active ? 'dihentikan' : 'diaktifkan'}!`);
+    } catch (error: any) {
+      toast.error(error.message || 'Gagal mengubah status mining');
+    }
   };
 
-  const stopAllMining = () => {
-    setUsers(prev => prev.map(user => ({ ...user, isMining: false })));
-    toast.error('Mining semua user dihentikan!');
+  const startAllMining = async () => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ mining_active: true })
+        .gt('mining_balance', 0);
+
+      if (error) throw error;
+
+      setUsers(prev => prev.map(user => ({ ...user, mining_active: true })));
+      toast.success('Mining semua user diaktifkan!');
+    } catch (error: any) {
+      toast.error(error.message || 'Gagal mengaktifkan mining');
+    }
+  };
+
+  const stopAllMining = async () => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ mining_active: false })
+        .gt('mining_balance', 0);
+
+      if (error) throw error;
+
+      setUsers(prev => prev.map(user => ({ ...user, mining_active: false })));
+      toast.error('Mining semua user dihentikan!');
+    } catch (error: any) {
+      toast.error(error.message || 'Gagal menghentikan mining');
+    }
   };
 
   return (
@@ -114,6 +176,7 @@ const MiningControl = () => {
               <Switch
                 checked={globalMining}
                 onCheckedChange={handleGlobalToggle}
+                disabled={saving}
                 className="scale-125"
               />
             </div>
@@ -164,67 +227,73 @@ const MiningControl = () => {
               </p>
             </div>
             
-            <Table>
-              <TableHeader>
-                <TableRow className="border-primary/20 hover:bg-primary/5">
-                  <TableHead>Username</TableHead>
-                  <TableHead>Mining Balance</TableHead>
-                  <TableHead>Daily Profit</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id} className="border-primary/10 hover:bg-primary/5">
-                    <TableCell className="font-medium">{user.username}</TableCell>
-                    <TableCell>
-                      <span className="text-primary font-semibold">{user.miningBalance} TON</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-green-400">{user.dailyProfit} TON/day</span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={
-                          user.isMining && globalMining
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-red-500/20 text-red-400'
-                        }
-                      >
-                        {user.isMining && globalMining ? 'Mining' : 'Stopped'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => toggleUserMining(user.id)}
-                        disabled={!globalMining}
-                        className={
-                          user.isMining
-                            ? 'border-red-500/20 hover:bg-red-500/10 text-red-400'
-                            : 'border-green-500/20 hover:bg-green-500/10 text-green-400'
-                        }
-                      >
-                        {user.isMining ? (
-                          <>
-                            <Pause className="w-4 h-4 mr-2" />
-                            Stop
-                          </>
-                        ) : (
-                          <>
-                            <Play className="w-4 h-4 mr-2" />
-                            Start
-                          </>
-                        )}
-                      </Button>
-                    </TableCell>
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">Belum ada user yang mining</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-primary/20 hover:bg-primary/5">
+                    <TableHead>Username</TableHead>
+                    <TableHead>Mining Balance</TableHead>
+                    <TableHead>Earning Profit</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user) => (
+                    <TableRow key={user.id} className="border-primary/10 hover:bg-primary/5">
+                      <TableCell className="font-medium">{user.username}</TableCell>
+                      <TableCell>
+                        <span className="text-primary font-semibold">{user.mining_balance} TON</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-green-400">{user.earning_profit} TON</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={
+                            user.mining_active && globalMining
+                              ? 'bg-green-500/20 text-green-400'
+                              : 'bg-red-500/20 text-red-400'
+                          }
+                        >
+                          {user.mining_active && globalMining ? 'Mining' : 'Stopped'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toggleUserMining(user.id)}
+                          disabled={!globalMining}
+                          className={
+                            user.mining_active
+                              ? 'border-red-500/20 hover:bg-red-500/10 text-red-400'
+                              : 'border-green-500/20 hover:bg-green-500/10 text-green-400'
+                          }
+                        >
+                          {user.mining_active ? (
+                            <>
+                              <Pause className="w-4 h-4 mr-2" />
+                              Stop
+                            </>
+                          ) : (
+                            <>
+                              <Play className="w-4 h-4 mr-2" />
+                              Start
+                            </>
+                          )}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </Card>
         </div>
       </div>
