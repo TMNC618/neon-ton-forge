@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Activity, TrendingUp } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const ProfitSettings = () => {
   const [settings, setSettings] = useState({
@@ -13,10 +14,69 @@ const ProfitSettings = () => {
     minMiningAmount: '10',
     maxMiningAmount: '10000',
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    toast.success('Pengaturan profit berhasil disimpan!');
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const { data } = await supabase
+        .from('settings')
+        .select('key, value')
+        .in('key', ['daily_profit_rate', 'min_mining_amount', 'max_mining_amount']);
+
+      if (data) {
+        const settingsMap = new Map(data.map(s => [s.key, s.value]));
+        setSettings({
+          dailyProfitRate: String(settingsMap.get('daily_profit_rate') || '1'),
+          minMiningAmount: String(settingsMap.get('min_mining_amount') || '10'),
+          maxMiningAmount: String(settingsMap.get('max_mining_amount') || '10000'),
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updates = [
+        { key: 'daily_profit_rate', value: parseFloat(settings.dailyProfitRate) },
+        { key: 'min_mining_amount', value: parseFloat(settings.minMiningAmount) },
+        { key: 'max_mining_amount', value: parseFloat(settings.maxMiningAmount) },
+      ];
+
+      for (const update of updates) {
+        const { error } = await supabase.rpc('update_setting', {
+          _key: update.key,
+          _value: update.value
+        });
+        if (error) throw error;
+      }
+
+      toast.success('Pengaturan profit berhasil disimpan!');
+    } catch (error: any) {
+      toast.error(error.message || 'Gagal menyimpan pengaturan');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="p-4 md:p-8">
+          <div className="text-center py-8 text-muted-foreground">Loading...</div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -114,7 +174,7 @@ const ProfitSettings = () => {
               <div className="flex justify-between p-3 bg-primary/10 rounded border border-primary/30">
                 <span className="text-foreground font-medium">Daily Profit:</span>
                 <span className="font-bold text-primary text-lg">
-                  {(100 * parseFloat(settings.dailyProfitRate) / 100).toFixed(2)} TON
+                  {(100 * parseFloat(settings.dailyProfitRate || '0') / 100).toFixed(2)} TON
                 </span>
               </div>
             </div>
@@ -124,17 +184,18 @@ const ProfitSettings = () => {
           <div className="flex justify-end gap-3">
             <Button
               variant="outline"
-              onClick={() => toast.info('Perubahan dibatalkan')}
+              onClick={() => fetchSettings()}
               className="border-primary/20"
             >
               Batal
             </Button>
             <Button
               onClick={handleSave}
+              disabled={saving}
               className="bg-primary hover:bg-primary/90 mining-glow"
             >
               <Activity className="w-4 h-4 mr-2" />
-              Simpan Pengaturan
+              {saving ? 'Menyimpan...' : 'Simpan Pengaturan'}
             </Button>
           </div>
         </div>

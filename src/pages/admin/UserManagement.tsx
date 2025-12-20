@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,22 +21,30 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Users, Search, Eye, Lock, Unlock, Plus, Minus, Mail, Phone, Wallet } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface User {
   id: string;
   username: string;
   email: string;
-  phone: string;
+  phone_number: string;
   balance: number;
-  teraBalance: number;
-  miningBalance: number;
-  earningProfit: number;
-  earningReferral: number;
-  walletAddress: string;
-  isActive: boolean;
-  joinDate: string;
+  tera_balance: number;
+  mining_balance: number;
+  earning_profit: number;
+  earning_referral: number;
+  wallet_address: string;
+  is_active: boolean;
+  created_at: string;
 }
 
 const UserManagement = () => {
@@ -45,67 +53,51 @@ const UserManagement = () => {
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [showBalanceDialog, setShowBalanceDialog] = useState(false);
   const [balanceAction, setBalanceAction] = useState<'add' | 'reduce'>('add');
+  const [balanceType, setBalanceType] = useState<string>('balance');
   const [balanceAmount, setBalanceAmount] = useState('');
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock users data
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: '1',
-      username: 'DemoUser',
-      email: 'user@example.com',
-      phone: '+1234567890',
-      balance: 100,
-      teraBalance: 50,
-      miningBalance: 100,
-      earningProfit: 45.5,
-      earningReferral: 12.3,
-      walletAddress: 'EQD...abc123',
-      isActive: true,
-      joinDate: '2024-01-15',
-    },
-    {
-      id: '2',
-      username: 'JohnDoe',
-      email: 'john@example.com',
-      phone: '+1234567891',
-      balance: 250,
-      teraBalance: 120,
-      miningBalance: 200,
-      earningProfit: 85.2,
-      earningReferral: 25.8,
-      walletAddress: 'EQD...def456',
-      isActive: true,
-      joinDate: '2024-02-10',
-    },
-    {
-      id: '3',
-      username: 'JaneSmith',
-      email: 'jane@example.com',
-      phone: '+1234567892',
-      balance: 50,
-      teraBalance: 25,
-      miningBalance: 50,
-      earningProfit: 15.3,
-      earningReferral: 5.2,
-      walletAddress: 'EQD...ghi789',
-      isActive: false,
-      joinDate: '2024-03-05',
-    },
-  ]);
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast.error('Gagal memuat data user');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredUsers = users.filter(user =>
     user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const toggleUserStatus = (userId: string) => {
-    setUsers(prev =>
-      prev.map(user =>
-        user.id === userId ? { ...user, isActive: !user.isActive } : user
-      )
-    );
-    const user = users.find(u => u.id === userId);
-    toast.success(`User ${user?.username} berhasil ${user?.isActive ? 'diblokir' : 'diaktifkan'}!`);
+  const toggleUserStatus = async (userId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('toggle_user_status', {
+        _user_id: userId
+      });
+
+      if (error) throw error;
+
+      const user = users.find(u => u.id === userId);
+      toast.success(`User ${user?.username} berhasil ${user?.is_active ? 'diblokir' : 'diaktifkan'}!`);
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.message || 'Gagal mengubah status user');
+    }
   };
 
   const handleViewDetail = (user: User) => {
@@ -117,10 +109,11 @@ const UserManagement = () => {
     setSelectedUser(user);
     setBalanceAction(action);
     setBalanceAmount('');
+    setBalanceType('balance');
     setShowBalanceDialog(true);
   };
 
-  const handleBalanceSubmit = () => {
+  const handleBalanceSubmit = async () => {
     if (!selectedUser || !balanceAmount) return;
 
     const amount = parseFloat(balanceAmount);
@@ -129,21 +122,24 @@ const UserManagement = () => {
       return;
     }
 
-    setUsers(prev =>
-      prev.map(user =>
-        user.id === selectedUser.id
-          ? {
-              ...user,
-              balance: balanceAction === 'add' ? user.balance + amount : user.balance - amount,
-            }
-          : user
-      )
-    );
+    try {
+      const rpcName = balanceAction === 'add' ? 'add_user_balance' : 'reduce_user_balance';
+      const { error } = await supabase.rpc(rpcName, {
+        _user_id: selectedUser.id,
+        _amount: amount,
+        _balance_type: balanceType
+      });
 
-    toast.success(
-      `Berhasil ${balanceAction === 'add' ? 'menambah' : 'mengurangi'} saldo ${amount} TON untuk ${selectedUser.username}!`
-    );
-    setShowBalanceDialog(false);
+      if (error) throw error;
+
+      toast.success(
+        `Berhasil ${balanceAction === 'add' ? 'menambah' : 'mengurangi'} ${amount} TON untuk ${selectedUser.username}!`
+      );
+      setShowBalanceDialog(false);
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.message || 'Gagal mengubah saldo');
+    }
   };
 
   return (
@@ -176,80 +172,84 @@ const UserManagement = () => {
 
           {/* Users Table */}
           <Card className="bg-card/50 border-primary/20 backdrop-blur-sm overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-primary/20 hover:bg-primary/5">
-                  <TableHead>Username</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead>Mining</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id} className="border-primary/10 hover:bg-primary/5">
-                    <TableCell className="font-medium">{user.username}</TableCell>
-                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                    <TableCell>
-                      <span className="text-primary font-semibold">{user.balance} TON</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-cyan-400">{user.miningBalance} TON</span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={user.isActive ? 'default' : 'secondary'}
-                        className={user.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}
-                      >
-                        {user.isActive ? 'Active' : 'Blocked'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewDetail(user)}
-                          className="border-primary/20 hover:bg-primary/10"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleBalanceAction(user, 'add')}
-                          className="border-green-500/20 hover:bg-green-500/10 text-green-400"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleBalanceAction(user, 'reduce')}
-                          className="border-orange-500/20 hover:bg-orange-500/10 text-orange-400"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => toggleUserStatus(user.id)}
-                          className={
-                            user.isActive
-                              ? 'border-red-500/20 hover:bg-red-500/10 text-red-400'
-                              : 'border-green-500/20 hover:bg-green-500/10 text-green-400'
-                          }
-                        >
-                          {user.isActive ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                        </Button>
-                      </div>
-                    </TableCell>
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-primary/20 hover:bg-primary/5">
+                    <TableHead>Username</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Balance</TableHead>
+                    <TableHead>Mining</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((user) => (
+                    <TableRow key={user.id} className="border-primary/10 hover:bg-primary/5">
+                      <TableCell className="font-medium">{user.username}</TableCell>
+                      <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                      <TableCell>
+                        <span className="text-primary font-semibold">{user.balance} TON</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-cyan-400">{user.mining_balance} TON</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={user.is_active ? 'default' : 'secondary'}
+                          className={user.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}
+                        >
+                          {user.is_active ? 'Active' : 'Blocked'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewDetail(user)}
+                            className="border-primary/20 hover:bg-primary/10"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleBalanceAction(user, 'add')}
+                            className="border-green-500/20 hover:bg-green-500/10 text-green-400"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleBalanceAction(user, 'reduce')}
+                            className="border-orange-500/20 hover:bg-orange-500/10 text-orange-400"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => toggleUserStatus(user.id)}
+                            className={
+                              user.is_active
+                                ? 'border-red-500/20 hover:bg-red-500/10 text-red-400'
+                                : 'border-green-500/20 hover:bg-green-500/10 text-green-400'
+                            }
+                          >
+                            {user.is_active ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </Card>
         </div>
       </div>
@@ -271,10 +271,10 @@ const UserManagement = () => {
                 <div>
                   <Label className="text-muted-foreground">Status</Label>
                   <Badge
-                    variant={selectedUser.isActive ? 'default' : 'secondary'}
-                    className={selectedUser.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}
+                    variant={selectedUser.is_active ? 'default' : 'secondary'}
+                    className={selectedUser.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}
                   >
-                    {selectedUser.isActive ? 'Active' : 'Blocked'}
+                    {selectedUser.is_active ? 'Active' : 'Blocked'}
                   </Badge>
                 </div>
               </div>
@@ -286,11 +286,11 @@ const UserManagement = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Phone className="w-4 h-4 text-primary" />
-                  <span className="text-sm">{selectedUser.phone || '-'}</span>
+                  <span className="text-sm">{selectedUser.phone_number || '-'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Wallet className="w-4 h-4 text-primary" />
-                  <span className="text-sm">{selectedUser.walletAddress || '-'}</span>
+                  <span className="text-sm">{selectedUser.wallet_address || '-'}</span>
                 </div>
               </div>
 
@@ -301,21 +301,21 @@ const UserManagement = () => {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">TERA Balance</Label>
-                  <p className="text-xl font-bold text-cyan-400">{selectedUser.teraBalance} TERA</p>
+                  <p className="text-xl font-bold text-cyan-400">{selectedUser.tera_balance} TERA</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Mining Balance</Label>
-                  <p className="text-xl font-bold text-purple-400">{selectedUser.miningBalance} TON</p>
+                  <p className="text-xl font-bold text-purple-400">{selectedUser.mining_balance} TON</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Earning Profit</Label>
-                  <p className="text-xl font-bold text-green-400">{selectedUser.earningProfit} TON</p>
+                  <p className="text-xl font-bold text-green-400">{selectedUser.earning_profit} TON</p>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-primary/20">
                 <Label className="text-muted-foreground">Join Date</Label>
-                <p className="text-sm">{new Date(selectedUser.joinDate).toLocaleDateString('id-ID')}</p>
+                <p className="text-sm">{new Date(selectedUser.created_at).toLocaleDateString('id-ID')}</p>
               </div>
             </div>
           )}
@@ -335,11 +335,22 @@ const UserManagement = () => {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Saldo Saat Ini</Label>
-              <p className="text-2xl font-bold text-primary">{selectedUser?.balance} TON</p>
+              <Label>Tipe Saldo</Label>
+              <Select value={balanceType} onValueChange={setBalanceType}>
+                <SelectTrigger className="bg-background/50 border-primary/20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="balance">TON Balance</SelectItem>
+                  <SelectItem value="tera_balance">TERA Balance</SelectItem>
+                  <SelectItem value="mining_balance">Mining Balance</SelectItem>
+                  <SelectItem value="earning_profit">Earning Profit</SelectItem>
+                  <SelectItem value="earning_referral">Earning Referral</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <Label htmlFor="amount">Jumlah (TON)</Label>
+              <Label htmlFor="amount">Jumlah</Label>
               <Input
                 id="amount"
                 type="number"
