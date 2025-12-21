@@ -373,6 +373,10 @@ export type Database = {
         Args: { _note?: string; _withdrawal_id: string }
         Returns: boolean
       }
+      create_deposit: {
+        Args: { _amount: number; _tx_hash: string }
+        Returns: string
+      }
       create_withdrawal: {
         Args: {
           _amount: number
