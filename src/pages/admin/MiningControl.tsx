@@ -91,10 +91,10 @@ const MiningControl = () => {
       const user = users.find(u => u.id === userId);
       if (!user) return;
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({ mining_active: !user.mining_active })
-        .eq('id', userId);
+      const { error } = await supabase.rpc('toggle_user_mining' as any, {
+        _user_id: userId,
+        _active: !user.mining_active
+      });
 
       if (error) throw error;
 
@@ -111,10 +111,9 @@ const MiningControl = () => {
 
   const startAllMining = async () => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ mining_active: true })
-        .gt('mining_balance', 0);
+      const { error } = await supabase.rpc('bulk_toggle_mining' as any, {
+        _active: true
+      });
 
       if (error) throw error;
 
@@ -127,10 +126,9 @@ const MiningControl = () => {
 
   const stopAllMining = async () => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ mining_active: false })
-        .gt('mining_balance', 0);
+      const { error } = await supabase.rpc('bulk_toggle_mining' as any, {
+        _active: false
+      });
 
       if (error) throw error;
 

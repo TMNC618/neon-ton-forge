@@ -373,6 +373,7 @@ export type Database = {
         Args: { _note?: string; _withdrawal_id: string }
         Returns: boolean
       }
+      bulk_toggle_mining: { Args: { _active: boolean }; Returns: boolean }
       create_deposit: {
         Args: { _amount: number; _tx_hash: string }
         Returns: string
@@ -416,8 +417,16 @@ export type Database = {
       stop_mining: { Args: never; Returns: number }
       swap_tera_to_ton: { Args: { _amount: number }; Returns: number }
       swap_ton_to_tera: { Args: { _amount: number }; Returns: number }
+      toggle_user_mining: {
+        Args: { _active: boolean; _user_id: string }
+        Returns: boolean
+      }
       toggle_user_status: { Args: { _user_id: string }; Returns: boolean }
       update_setting: { Args: { _key: string; _value: Json }; Returns: boolean }
+      update_user_profile: {
+        Args: { _phone_number?: string; _username: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "user"

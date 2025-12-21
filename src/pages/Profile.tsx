@@ -65,7 +65,7 @@ const Profile = () => {
     setSaving(true);
 
     try {
-      const { error } = await supabase.rpc('update_user_profile', {
+      const { error } = await supabase.rpc('update_user_profile' as any, {
         _username: username.trim(),
         _phone_number: phoneNumber.trim()
       });
