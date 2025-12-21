@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { ArrowUpFromLine, TrendingUp, Users, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { validateTonWalletAddress } from '@/lib/validation';
 
 const Withdraw = () => {
   const { user, profile, loading, refreshProfile } = useAuth();
@@ -55,8 +56,9 @@ const Withdraw = () => {
       return;
     }
 
-    if (!profitWallet) {
-      toast.error('Please enter wallet address');
+    const walletValidation = validateTonWalletAddress(profitWallet);
+    if (!walletValidation.valid) {
+      toast.error(walletValidation.error || 'Invalid wallet address');
       return;
     }
 
@@ -94,8 +96,9 @@ const Withdraw = () => {
       return;
     }
 
-    if (!referralWallet) {
-      toast.error('Please enter wallet address');
+    const walletValidation = validateTonWalletAddress(referralWallet);
+    if (!walletValidation.valid) {
+      toast.error(walletValidation.error || 'Invalid wallet address');
       return;
     }
 
