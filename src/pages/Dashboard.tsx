@@ -45,7 +45,7 @@ const Dashboard = () => {
     try {
       const { data, error } = await supabase.rpc('stop_mining');
       if (error) throw error;
-      toast.success(`Mining stopped! Earned: ${Number(data).toFixed(6)} TON`);
+      toast.success(`Mining stopped! Earned: ${Number(data).toFixed(6)} TERA (added to TERA Balance)`);
       await refreshProfile();
     } catch (error: any) {
       toast.error(error.message || 'Failed to stop mining');

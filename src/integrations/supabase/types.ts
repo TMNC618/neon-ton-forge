@@ -401,6 +401,10 @@ export type Database = {
         Args: { _deposit_amount: number }
         Returns: boolean
       }
+      process_referral_deposit_bonus: {
+        Args: { _deposit_amount: number; _user_id: string }
+        Returns: boolean
+      }
       reduce_user_balance: {
         Args: { _amount: number; _balance_type?: string; _user_id: string }
         Returns: boolean
