@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 import { ArrowDownUp, RefreshCw, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { SwapHistory } from '@/components/history/SwapHistory';
+import { useSwapHistory } from '@/hooks/useTransactionHistory';
 
 const SwapCoin = () => {
   const { user, profile, loading, refreshProfile } = useAuth();
@@ -15,6 +17,7 @@ const SwapCoin = () => {
   const [fromCoin, setFromCoin] = useState<'TON' | 'TERA'>('TON');
   const [amount, setAmount] = useState('');
   const [swapping, setSwapping] = useState(false);
+  const { swaps, loading: loadingHistory, refetch } = useSwapHistory();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -75,6 +78,7 @@ const SwapCoin = () => {
       
       setAmount('');
       await refreshProfile();
+      refetch();
     } catch (error: any) {
       toast.error(error.message || 'Swap failed');
     } finally {
@@ -235,6 +239,9 @@ const SwapCoin = () => {
               </div>
             </div>
           </div>
+
+          {/* Swap History */}
+          <SwapHistory swaps={swaps} loading={loadingHistory} />
         </div>
       </div>
     </AppLayout>

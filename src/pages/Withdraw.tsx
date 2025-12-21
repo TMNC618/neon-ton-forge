@@ -10,6 +10,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { validateTonWalletAddress } from '@/lib/validation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { WithdrawHistory } from '@/components/history/WithdrawHistory';
+import { useWithdrawHistory } from '@/hooks/useTransactionHistory';
 
 const Withdraw = () => {
   const { user, profile, loading, refreshProfile } = useAuth();
@@ -17,6 +19,7 @@ const Withdraw = () => {
   const [amount, setAmount] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const { withdrawals, loading: loadingHistory, refetch } = useWithdrawHistory();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -73,6 +76,7 @@ const Withdraw = () => {
       toast.success('Withdrawal request submitted successfully!');
       setAmount('');
       await refreshProfile();
+      refetch();
     } catch (error: any) {
       toast.error(error.message || 'Failed to submit withdrawal');
     } finally {
@@ -205,6 +209,9 @@ const Withdraw = () => {
               </Button>
             </form>
           </div>
+
+          {/* Withdrawal History */}
+          <WithdrawHistory withdrawals={withdrawals} loading={loadingHistory} />
         </div>
       </div>
     </AppLayout>
