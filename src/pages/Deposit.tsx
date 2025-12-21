@@ -105,7 +105,7 @@ const Deposit = () => {
     
     try {
       // Use RPC function for secure deposit creation with server-side validation
-      const { data, error } = await supabase.rpc('create_deposit', {
+      const { data, error } = await supabase.rpc('create_deposit' as any, {
         _amount: validAmount,
         _tx_hash: validTxHash
       });
