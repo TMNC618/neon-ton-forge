@@ -7,6 +7,19 @@ import { toast } from 'sonner';
 import { ArrowDownToLine, Copy, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { z } from 'zod';
+
+// Validation schema for deposit
+const depositSchema = z.object({
+  amount: z.number()
+    .min(10, "Minimum deposit is 10 TON")
+    .max(10000, "Maximum deposit is 10,000 TON"),
+  txHash: z.string()
+    .trim()
+    .min(32, "Transaction hash is too short")
+    .max(128, "Transaction hash is too long")
+    .regex(/^[a-zA-Z0-9+/=_-]+$/, "Transaction hash contains invalid characters")
+});
 
 interface Deposit {
   id: string;
@@ -69,34 +82,49 @@ const Deposit = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!amount || parseFloat(amount) < 10) {
-      toast.error('Minimum deposit is 10 TON');
-      return;
-    }
-
-    if (!txId) {
-      toast.error('Please enter transaction ID');
-      return;
-    }
-
     if (!user) {
       toast.error('Please login first');
       return;
     }
 
+    // Validate input using zod schema
+    const validationResult = depositSchema.safeParse({
+      amount: parseFloat(amount) || 0,
+      txHash: txId.trim()
+    });
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.errors[0];
+      toast.error(firstError.message);
+      return;
+    }
+
+    const { amount: validAmount, txHash: validTxHash } = validationResult.data;
+
     setLoading(true);
     
     try {
-      const { error } = await supabase
-        .from('deposits')
-        .insert({
-          user_id: user.id,
-          amount: parseFloat(amount),
-          tx_hash: txId,
-          status: 'pending'
-        });
+      // Use RPC function for secure deposit creation with server-side validation
+      const { data, error } = await supabase.rpc('create_deposit', {
+        _amount: validAmount,
+        _tx_hash: validTxHash
+      });
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific error messages from the RPC
+        if (error.message.includes('already been submitted')) {
+          toast.error('This transaction hash has already been submitted');
+        } else if (error.message.includes('Minimum deposit')) {
+          toast.error('Minimum deposit is 10 TON');
+        } else if (error.message.includes('Maximum deposit')) {
+          toast.error('Maximum deposit is 10,000 TON');
+        } else if (error.message.includes('invalid')) {
+          toast.error('Invalid transaction hash format');
+        } else {
+          toast.error(error.message || 'Failed to submit deposit');
+        }
+        return;
+      }
 
       toast.success('Deposit request submitted successfully!');
       setAmount('');
