@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { User, Mail, Phone, Lock, Save, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { validateUsername, validatePhoneNumber } from '@/lib/validation';
 
 const Profile = () => {
   const { user, profile, loading, refreshProfile } = useAuth();
@@ -46,16 +47,28 @@ const Profile = () => {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate username
+    const usernameValidation = validateUsername(username);
+    if (!usernameValidation.valid) {
+      toast.error(usernameValidation.error || 'Invalid username');
+      return;
+    }
+    
+    // Validate phone number
+    const phoneValidation = validatePhoneNumber(phoneNumber);
+    if (!phoneValidation.valid) {
+      toast.error(phoneValidation.error || 'Invalid phone number');
+      return;
+    }
+    
     setSaving(true);
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          username, 
-          phone_number: phoneNumber 
-        })
-        .eq('id', user.id);
+      const { error } = await supabase.rpc('update_user_profile', {
+        _username: username.trim(),
+        _phone_number: phoneNumber.trim()
+      });
 
       if (error) throw error;
       
