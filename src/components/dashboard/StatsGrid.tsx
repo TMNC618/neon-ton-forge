@@ -1,5 +1,5 @@
 import { StatCard } from '@/components/StatCard';
-import { Wallet, TrendingUp, Users, Coins } from 'lucide-react';
+import { Wallet, TrendingUp, Users, Coins, Pickaxe } from 'lucide-react';
 import { Profile } from '@/hooks/useAuthState';
 
 interface StatsGridProps {
@@ -8,7 +8,7 @@ interface StatsGridProps {
 
 export function StatsGrid({ profile }: StatsGridProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
       <StatCard
         icon={Wallet}
         label="TON Balance"
@@ -23,15 +23,21 @@ export function StatsGrid({ profile }: StatsGridProps) {
         subValue="TERA"
       />
       <StatCard
+        icon={Pickaxe}
+        label="Mining Balance"
+        value={profile.mining_balance.toFixed(2)}
+        subValue="TERA"
+      />
+      <StatCard
         icon={TrendingUp}
-        label="Earning Profit"
+        label="Total Profit"
         value={profile.earning_profit.toFixed(2)}
         subValue="TON"
         trend="up"
       />
       <StatCard
         icon={Users}
-        label="Earning Referral"
+        label="Referral Bonus"
         value={profile.earning_referral.toFixed(2)}
         subValue="TON"
         trend="up"
